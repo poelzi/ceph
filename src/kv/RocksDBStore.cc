@@ -1994,7 +1994,16 @@ bool RocksDBStore::backup(const std::string& path)
     rocksdb::BackupEngineOptions(path),
     rocksdb::Env::Default(),
     &backup_engine);
+  if (!backup_engine || !s.ok()) {
+    ldout(cct, 0) << __func__ << "can't create backup_engine: " << s.ToString() << dendl;
+    return false;
+  }
   s = backup_engine->CreateNewBackup(db);
+  if (!s.ok()) {
+    ldout(cct, 0) << __func__ << "can't create backup: " << s.ToString() << dendl;
+  } else {
+    ldout(cct, 10) << __func__ << "created backup successfully: " << s.ToString() << dendl;
+  }
   return s.ok();
 }
 
@@ -2004,11 +2013,11 @@ bool RocksDBStore::restore_backup(CephContext *cct, const std::string &path, con
   rocksdb::Status s = rocksdb::BackupEngineReadOnly::Open(rocksdb::Env::Default(), rocksdb::BackupEngineOptions(path), &backup_engine);
   const rocksdb::RestoreOptions options = rocksdb::RestoreOptions();
   if (!s.ok()) {
-    derr << __func__ << "Can't open backup folder: " << s.ToString() << dendl;
+    derr << __func__ << "can't open backup folder: " << s.ToString() << dendl;
     return false;
   }
   if (version == "-1") {
-    derr << "Restore last valid backup" << dendl;
+    derr << "restore last valid backup" << dendl;
     s = backup_engine->RestoreDBFromLatestBackup(
         options,
         backup_path,
